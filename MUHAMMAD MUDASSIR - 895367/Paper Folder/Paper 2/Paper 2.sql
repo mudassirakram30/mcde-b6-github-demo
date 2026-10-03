@@ -190,3 +190,20 @@ BEGIN
     ORDER BY total_net_revenue DESC;
 END;
 GO
+-- TASK-10
+SELECT 
+    s.store_name,
+    SUM(oi.quantity * oi.list_price) AS gross_revenue,
+    SUM(oi.quantity * oi.list_price * oi.discount) AS total_discount,
+    CAST(100.0 * SUM(oi.quantity * oi.list_price * oi.discount)
+         / SUM(oi.quantity * oi.list_price) AS DECIMAL(5,2)) AS discount_pct
+FROM sales.orders o
+JOIN sales.order_items oi ON o.order_id = oi.order_id
+JOIN sales.stores s ON o.store_id = s.store_id
+WHERE o.order_status = 4
+GROUP BY s.store_name
+ORDER BY discount_pct DESC;
+
+-- Business question: Which store gives away the largest share of its revenue in discounts?
+-- Measures: total discount value and discount as a percentage of pre-discount revenue per store.
+-- Why it matters: high discounting can erode margin, so management can review store pricing and promotions.
