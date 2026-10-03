@@ -108,8 +108,8 @@ ORDER BY category_name ASC, product_position ASC;
 --TASK-6
 WITH MonthlySales AS (
     SELECT 
-        YEAR(o.order_date) AS year,
-        MONTH(o.order_date) AS month,
+        YEAR(o.order_date) AS [year],
+        MONTH(o.order_date) AS [month],
         SUM(oi.quantity * oi.list_price * (1 - oi.discount)) AS total_net_revenue
     FROM sales.orders o
     JOIN sales.order_items oi ON o.order_id = oi.order_id
@@ -117,16 +117,16 @@ WITH MonthlySales AS (
     GROUP BY YEAR(o.order_date), MONTH(o.order_date)
 )
 SELECT 
-    year,
-    month,
+    [year],
+    [month],
     total_net_revenue,
-    LAG(total_net_revenue) OVER (ORDER BY year, month) AS previous_month_total_net_revenue,
-    total_net_revenue - LAG(total_net_revenue) OVER (ORDER BY year, month) AS revenue_change
+    LAG(total_net_revenue) OVER (ORDER BY [year], [month]) AS previous_month_total_net_revenue,
+    total_net_revenue - LAG(total_net_revenue) OVER (ORDER BY [year], [month]) AS revenue_change
 FROM MonthlySales
-ORDER BY year ASC, month ASC;
+ORDER BY [year] ASC, [month] ASC;
+GO   -- <<< added
 
 --TASK-7
-
 CREATE OR ALTER VIEW sales.vw_customer_sales_summary AS
 SELECT 
     c.customer_id,
@@ -145,31 +145,23 @@ GROUP BY
     c.customer_id, 
     c.first_name, 
     c.last_name;
-    
-    --TAKSK-8
+GO   -- <<< added (required)
 
-    -- Step 1: Begin explicit transaction
+--TASK-8
 BEGIN TRANSACTION;
 
--- Step 2: Update customer phone number
 UPDATE sales.customers
 SET phone = '(999) 555-0101'
 WHERE customer_id = 1;
 
--- Step 3: Validation query to verify update
-SELECT 
-    customer_id, 
-    first_name, 
-    last_name, 
-    phone 
+SELECT customer_id, first_name, last_name, phone 
 FROM sales.customers
 WHERE customer_id = 1;
 
--- Step 4: Rollback transaction during testing to prevent permanent changes
 ROLLBACK TRANSACTION;
+GO   -- <<< added (required before the procedure)
 
--- TASK-9
-
+--TASK-9
 CREATE OR ALTER PROCEDURE sales.usp_store_sales_report
     @store_id INT,
     @start_date DATE,
@@ -178,36 +170,23 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Validate date range
     IF @start_date > @end_date
     BEGIN
-        RAISERROR(
-            'Invalid date range: @start_date cannot be later than @end_date.',
-            16,
-            1
-        );
+        RAISERROR('Invalid date range: @start_date cannot be later than @end_date.', 16, 1);
         RETURN;
     END;
 
-    -- Store sales report
     SELECT 
         p.product_name,
         SUM(oi.quantity) AS total_units_sold,
-        SUM(
-            oi.quantity * oi.list_price * (1 - oi.discount)
-        ) AS total_net_revenue
+        SUM(oi.quantity * oi.list_price * (1 - oi.discount)) AS total_net_revenue
     FROM sales.orders o
-    INNER JOIN sales.order_items oi 
-        ON o.order_id = oi.order_id
-    INNER JOIN production.products p 
-        ON oi.product_id = p.product_id
+    INNER JOIN sales.order_items oi ON o.order_id = oi.order_id
+    INNER JOIN production.products p ON oi.product_id = p.product_id
     WHERE o.store_id = @store_id
       AND o.order_date BETWEEN @start_date AND @end_date
       AND o.order_status = 4
-    GROUP BY 
-        p.product_id,
-        p.product_name
-    ORDER BY 
-        total_net_revenue DESC;
+    GROUP BY p.product_id, p.product_name
+    ORDER BY total_net_revenue DESC;
 END;
 GO
